@@ -1,0 +1,3 @@
+adjust;orientation;end;0;-45;1000;
+wait;3000;
+adjust;orientation;end;-45;90;1000;
