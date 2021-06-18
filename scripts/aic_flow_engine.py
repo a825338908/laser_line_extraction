@@ -28,8 +28,8 @@ class SliderDevice(Enum):
 
 
 class SprayDevice(Enum):
-    HIGH = 'spray_high' #'spray_high'
-    MID = 'spray_mid'#spray_mid'
+    HIGH = 'spray_mid' #'spray_high'
+    MID = 'spray_high'#spray_mid'
     LOW = 'spray_low'
 
 
@@ -512,44 +512,52 @@ class AutoPaint():
     def cbGetLines(self, lines_msg, order_by_angle=None):
         angles = []
         distances = []
+        global global_walls
         if len(lines_msg.line_segments) > 0:
             for line in lines_msg.line_segments:
                 angle_deg = line.angle * 180 / math.pi
                 if angle_deg > 175:
                     angle_deg = -180.0
                 angle_deg = round(angle_deg)
-                distance_cm = round(100 * line.radius)
+                distance_cm = round(100 * line.radius) #460
 
                 found = False
                 merge_cm = 5
                 merge_deg = 5
+                outlier_cm = 30
                 found = False
                 for i in range(len(angles)):
                     check_angle = angles[i]
                     check_distance = distances[i]
-                    if check_angle - merge_deg < angle_deg < check_angle + merge_deg:
-                        found = True
-                        if distance_cm > check_distance:
-                            found = True
+                    if check_angle- merge_deg < angle_deg < check_angle + merge_deg:
+                        #found = True
+                        if distance_cm < check_distance:
+                            found = False
                             break
+                        else:
+                            found = True
+
                 if not found:
                     angles.append(angle_deg)
                     distances.append(distance_cm)  # mm
+
 
         distances = np.array(distances) * 10
         walls = zip(angles, distances)
         self.walls = sorted(walls, key=lambda x: abs(x[1]), reverse=False)  # sort by distance by default
 
-        global global_walls
+        '''
         if check_distance_wall:
             if not global_walls:  # global_walls is empty
                 global_walls = walls
             else:
-                self.check_outlier_walls()
+                if len(walls) > 4:
 
+        '''
+        
         if not self.is_walls_available:
             self.is_walls_available = True
-
+    '''
     def check_outlier_walls(self):
         global global_walls
         cur_walls = self.walls
@@ -569,9 +577,11 @@ class AutoPaint():
                         if cur_wall_distance - last_wall_distance > outlier_distance:
                             #print("cur_walls: " + str(i) + str(self.walls[i]))
                             #print("replace wall: " + str(last_walls[j]))
+                            print("before_filtered_global_walls: self" + str(self.walls))
                             self.walls[i] = last_walls[j]
+                            print("filtered_global_walls: self" + str(self.walls))
         global_walls = self.walls
-        #print("filtered_global_walls: " + str(global_walls))
+    '''
 
     def onoff_high_spray(self, onoff):
         if onoff == 1:
