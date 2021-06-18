@@ -8,8 +8,7 @@ import redis
 from enum import Enum
 import time
 
-global_walls = []  # for checking use
-check_distance_wall = False
+global dir_check_wall
 
 class SliderAction(Enum):
     STOP = -2.0
@@ -294,7 +293,7 @@ class AutoPaint():
         return walls
 
     def process(self):
-        global check_distance_wall
+        global dir_check_wall
         step_keep_running = False
         #if self.is_walls_available and len(self.walls) == 0:
         #    return True
@@ -346,7 +345,6 @@ class AutoPaint():
                 elif command == 'spray_low_off':
                     self.onoff_low_spray(0)
                 elif command == 'wait':
-                    check_distance_wall = False
                     ms = float(tmp[1])
                     if self.step_t0 is None:
                         self.step_t0 = rospy.get_time()
@@ -394,7 +392,10 @@ class AutoPaint():
 
                 elif command == 'adjust':
                     if tmp[1] == 'distance':
-                        check_distance_wall = True
+                        if float(tmp[3]) == 90 or float(tmp[3]) == -90:
+                            dir_check_wall = 'y_direction'
+                        elif float(tmp[3]) == 0 or float(tmp[3]) == -180:
+                            dir_check_wall = 'x_direction'
                         walls = self.get_walls(float(tmp[3]))
                         target_distance = float(tmp[4])
                         angle, distance = walls[0]
@@ -441,7 +442,6 @@ class AutoPaint():
                         else:
                             step_keep_running = False
                     elif tmp[1] == 'orientation':
-                        check_distance_wall = False
                         walls = self.get_walls(float(tmp[3]))
                         angle, distance = walls[0]
                         target = float(tmp[4])
@@ -512,14 +512,19 @@ class AutoPaint():
     def cbGetLines(self, lines_msg, order_by_angle=None):
         angles = []
         distances = []
-        global global_walls
+        start_points = [] #for check walls such as two wall at same direction
+        end_points = []
+        ### or hard delidar only take negative -3.14 for -180
         if len(lines_msg.line_segments) > 0:
             for line in lines_msg.line_segments:
                 angle_deg = line.angle * 180 / math.pi
                 if angle_deg > 175:
-                    angle_deg = -180.0
+                    #angle_deg = -180.0
+                    angle_deg = -999
                 angle_deg = round(angle_deg)
                 distance_cm = round(100 * line.radius) #460
+                start_point = line.start
+                end_point = line.end
 
                 found = False
                 merge_cm = 5
@@ -540,48 +545,16 @@ class AutoPaint():
                 if not found:
                     angles.append(angle_deg)
                     distances.append(distance_cm)  # mm
-
-
+                    start_points.append(start_point)
+                    end_points.append(end_point)
+        #TODO using the start and end point to differentiate correct wall
         distances = np.array(distances) * 10
         walls = zip(angles, distances)
         self.walls = sorted(walls, key=lambda x: abs(x[1]), reverse=False)  # sort by distance by default
+        print(self.walls)
 
-        '''
-        if check_distance_wall:
-            if not global_walls:  # global_walls is empty
-                global_walls = walls
-            else:
-                if len(walls) > 4:
-
-        '''
-        
         if not self.is_walls_available:
             self.is_walls_available = True
-    '''
-    def check_outlier_walls(self):
-        global global_walls
-        cur_walls = self.walls
-        last_walls = global_walls
-        outlier_distance = 100  # walls with the same angle with the increase distance larger than 100cm consider as outlier wall
-        offset = 5
-        ### Find the match degree walls
-        #print("origin_walls: " + str(cur_walls))
-        for i in range(len(cur_walls)):
-            cur_wall_angles = cur_walls[i][0]
-            cur_wall_distance = cur_walls[i][1]
-            for j in range(len(last_walls)):
-                last_wall_angle = last_walls[j][0]
-                last_wall_distance = last_walls[j][1]
-                if last_wall_angle - offset < cur_wall_angles < last_wall_angle + offset:  # Find similar wall
-                    if cur_wall_distance > last_wall_distance:
-                        if cur_wall_distance - last_wall_distance > outlier_distance:
-                            #print("cur_walls: " + str(i) + str(self.walls[i]))
-                            #print("replace wall: " + str(last_walls[j]))
-                            print("before_filtered_global_walls: self" + str(self.walls))
-                            self.walls[i] = last_walls[j]
-                            print("filtered_global_walls: self" + str(self.walls))
-        global_walls = self.walls
-    '''
 
     def onoff_high_spray(self, onoff):
         if onoff == 1:
