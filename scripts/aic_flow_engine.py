@@ -8,8 +8,8 @@ import redis
 from enum import Enum
 import time
 
-global_walls = []  # for checking use
-check_distance_wall = False
+move_x_dir = False
+move_y_dir = False
 
 class SliderAction(Enum):
     STOP = -2.0
@@ -294,7 +294,7 @@ class AutoPaint():
         return walls
 
     def process(self):
-        global check_distance_wall
+        #global check_distance_wall
         step_keep_running = False
         #if self.is_walls_available and len(self.walls) == 0:
         #    return True
@@ -346,7 +346,7 @@ class AutoPaint():
                 elif command == 'spray_low_off':
                     self.onoff_low_spray(0)
                 elif command == 'wait':
-                    check_distance_wall = False
+                    #check_distance_wall = False
                     ms = float(tmp[1])
                     if self.step_t0 is None:
                         self.step_t0 = rospy.get_time()
@@ -393,8 +393,17 @@ class AutoPaint():
                                 self.slider.spray_enter_standby(device=device, enable=enable)
 
                 elif command == 'adjust':
+                    global move_x_dir
+                    global move_y_dir
                     if tmp[1] == 'distance':
-                        check_distance_wall = True
+                        #check_distance_wall = True
+                        if int(tmp[3]) == 0 or int(tmp[3]) == 180:
+                            move_x_dir = True
+                            move_y_dir = False
+                        elif int(tmp[3]) == 90 or int(tmp[3]) == -90: 
+                            move_x_dir = False
+                            move_y_dir = True  
+
                         walls = self.get_walls(float(tmp[3]))
                         target_distance = float(tmp[4])
                         angle, distance = walls[0]
@@ -415,33 +424,10 @@ class AutoPaint():
                             tx = math.cos(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100  #sin
                             ty = math.sin(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100  #cos
                             self.fnGoStraight(x=tx, y=ty)
-                            '''
-                            if -1 < float(tmp[3]) < 1:
-                                tx = math.sin(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                ty = math.cos(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                self.fnGoStraight(x=ty, y=tx)
-                            elif 89 < float(tmp[3]) < 91:
-                                tx = math.sin(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                ty = math.cos(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                self.fnGoStraight(x=ty, y=tx)
-                            elif -91 < float(tmp[3]) < -89:
-                                tx = math.sin(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                ty = math.cos(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                self.fnGoStraight(x=ty, y=tx)
-                            elif -181 < float(tmp[3]) < -179:
-                                tx = math.sin(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                ty = math.cos(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                self.fnGoStraight(x=ty, y=tx)
-                            else:
-                                tx = math.sin(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                ty = math.cos(math.pi * float(tmp[3]) / 180) * (distance - target_distance) / 100
-                                self.fnGoStraight(x=ty, y=tx)
-                            '''
                             step_keep_running = True
                         else:
                             step_keep_running = False
                     elif tmp[1] == 'orientation':
-                        check_distance_wall = False
                         walls = self.get_walls(float(tmp[3]))
                         angle, distance = walls[0]
                         target = float(tmp[4])
@@ -512,7 +498,15 @@ class AutoPaint():
     def cbGetLines(self, lines_msg, order_by_angle=None):
         angles = []
         distances = []
-        global global_walls
+        start_points_x = []
+        start_points_y = []
+        end_points_x = []
+        end_points_y = []
+        global move_x_dir
+        global move_y_dir
+
+        #global global_walls
+
         if len(lines_msg.line_segments) > 0:
             for line in lines_msg.line_segments:
                 angle_deg = line.angle * 180 / math.pi
@@ -520,41 +514,70 @@ class AutoPaint():
                     angle_deg = -180.0
                 angle_deg = round(angle_deg)
                 distance_cm = round(100 * line.radius) #460
-
+                start_point_x = line.start[0]
+                start_point_y = line.start[1]
+                end_point_x = line.end[0]
+                end_point_y = line.end[1]
+                
+                '''
+                angles.append(angle_deg)
+                distances.append(distance_cm)
+                start_point_x.append(start_point_x)
+                start_point_y.append(start_point_y)
+                end_points_x.append(end_point_x)
+                end_points_y.append(end_point_y)
+                '''
+                #Move x dir, y+ - y-
+                #Move y dir, x+ - x-
                 found = False
                 merge_cm = 5
                 merge_deg = 5
-                outlier_cm = 30
-                found = False
                 for i in range(len(angles)):
                     check_angle = angles[i]
                     check_distance = distances[i]
                     if check_angle- merge_deg < angle_deg < check_angle + merge_deg:
                         #found = True
-                        if distance_cm < check_distance:
-                            angles.pop(i)
-                            distances.pop(i)
-                            found = False
-                            break
-                        else:
-                            found = True
+                        if move_x_dir:
+                            if (start_point_y > 0.0 and end_point_y < 0.0):
+                                angles.pop(i)
+                                distances.pop(i)
+                                found = False
+                                break
+                            else:
+                                found = True
+                        elif move_y_dir:
+                            if (start_point_x > 0.0 and end_point_x < 0.0):
+                                angles.pop(i)
+                                distances.pop(i)
+                                found = False
+                                break
+                            else:
+                                found = True                                        
+    
 
                 if not found:
                     angles.append(angle_deg)
                     distances.append(distance_cm)  # mm
+                    
+                    print("angle" + str(angle_deg))
+                    print("distance" + str(distance_cm))
+                    print("y+" + str(start_point_y))
+                    print("y-" + str(end_point_y))
+                    
+                    
 
 
         distances = np.array(distances) * 10
         walls = zip(angles, distances)
         self.walls = sorted(walls, key=lambda x: abs(x[1]), reverse=False)  # sort by distance by default
 
-
+        '''
         if check_distance_wall:
             if not global_walls:  # global_walls is empty
                 global_walls = walls
             #else:
              #   self.check_outlier_walls()
-
+        '''
 
         if not self.is_walls_available:
             self.is_walls_available = True
