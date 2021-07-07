@@ -519,14 +519,6 @@ class AutoPaint():
                 end_point_x = line.end[0]
                 end_point_y = line.end[1]
                 
-                '''
-                angles.append(angle_deg)
-                distances.append(distance_cm)
-                start_point_x.append(start_point_x)
-                start_point_y.append(start_point_y)
-                end_points_x.append(end_point_x)
-                end_points_y.append(end_point_y)
-                '''
                 #Move x dir, y+ - y-
                 #Move y dir, x+ - x-
                 found = False
@@ -565,48 +557,13 @@ class AutoPaint():
                     print("y-" + str(end_point_y))
                     
                     
-
-
         distances = np.array(distances) * 10
         walls = zip(angles, distances)
         self.walls = sorted(walls, key=lambda x: abs(x[1]), reverse=False)  # sort by distance by default
 
-        '''
-        if check_distance_wall:
-            if not global_walls:  # global_walls is empty
-                global_walls = walls
-            #else:
-             #   self.check_outlier_walls()
-        '''
-
         if not self.is_walls_available:
             self.is_walls_available = True
 
-    '''
-    def check_outlier_walls(self):
-        global global_walls
-        cur_walls = self.walls
-        last_walls = global_walls
-        outlier_distance = 100  # walls with the same angle with the increase distance larger than 100cm consider as outlier wall
-        offset = 5
-        ### Find the match degree walls
-        #print("origin_walls: " + str(cur_walls))
-        for i in range(len(cur_walls)):
-            cur_wall_angles = cur_walls[i][0]
-            cur_wall_distance = cur_walls[i][1]
-            for j in range(len(last_walls)):
-                last_wall_angle = last_walls[j][0]
-                last_wall_distance = last_walls[j][1]
-                if last_wall_angle - offset < cur_wall_angles < last_wall_angle + offset:  # Find similar wall
-                    if cur_wall_distance > last_wall_distance:
-                        if cur_wall_distance - last_wall_distance > outlier_distance:
-                            #print("cur_walls: " + str(i) + str(self.walls[i]))
-                            #print("replace wall: " + str(last_walls[j]))
-                            print("before_filtered_global_walls: self" + str(self.walls))
-                            self.walls[i] = last_walls[j]
-                            print("filtered_global_walls: self" + str(self.walls))
-        global_walls = self.walls
-    '''
 
     def onoff_high_spray(self, onoff):
         if onoff == 1:
