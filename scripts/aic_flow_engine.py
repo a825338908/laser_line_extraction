@@ -65,14 +65,14 @@ def init_redis(r=None, restore_default=False):
 
     if restore_default:
         r.set("spray_main_switch", 0.0)
-        r.hset("spray_high_range", "min", 0)
-        r.hset("spray_high_range", "max", 2000)
-        r.hset("spray_mid_range", "min", 0)
-        r.hset("spray_mid_range", "max", 2000)
-        r.hset("spray_low_range", "min", 0)
-        r.hset("spray_low_range", "max", 2000)
+        r.hset("spray_high_range", "min", 1560)
+        r.hset("spray_high_range", "max", 2630)
+        r.hset("spray_mid_range", "min", 890)
+        r.hset("spray_mid_range", "max", 2630)
+        r.hset("spray_low_range", "min", 1020)
+        r.hset("spray_low_range", "max", 1910)
 
-        r.hset("slider_main_range", "min", 0)
+        r.hset("slider_main_range", "min", 200)
         r.hset("slider_main_range", "max", 2100)
 
     # high: 1560 < x < 2630
@@ -109,14 +109,13 @@ class SliderPaint():
             return SprayAction.OFF
 
     def slider_action(self, action = SliderAction.STOP):
-        '''
         if action == SliderAction.STOP:
             self.r.hset("Joy", "but_lb", 1.0)
         else:
-            self.r.hset("Joy", "but_lb", 0.0)
-        '''
 
-        self.r.hset("slider", "move", action.value)
+            self.r.hset("Joy", "but_lb", 0.0)
+
+        self.r.hset("Joy", "updown_but", action.value)
         self.is_running = action != SliderAction.STOP
         if not self.is_running:
             self.all_spray_off()
@@ -227,7 +226,7 @@ class AutoPaint():
         loop_rate = rospy.Rate(10)  # 1Hz in gazebo
         self.current_stage = 'read_flow'  # read_flow
         self.sub_lines = rospy.Subscriber('/line_segments', LineSegmentList, self.cbGetLines, queue_size=1)
-        self.pub_cmd_vel = rospy.Publisher('/yocs_cmd_vel_mux/cmd_vel', Twist, queue_size=1)
+        self.pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         self.step_t0 = None
         self.step_d0 = None
         self.step_num = None
@@ -295,6 +294,7 @@ class AutoPaint():
         return walls
 
     def process(self):
+        #global check_distance_wall
         step_keep_running = False
         #if self.is_walls_available and len(self.walls) == 0:
         #    return True
@@ -345,18 +345,6 @@ class AutoPaint():
                     self.onoff_low_spray(1)
                 elif command == 'spray_low_off':
                     self.onoff_low_spray(0)
-                elif command == 'spray_mid_off':
-                    self.onoff_mid_spray(0)
-                elif command == 'spray_mid_on':
-                    self.onoff_mid_spray(1)
-                elif command == 'servo_up_on':
-                    self.onoff_servo(1)
-                elif command == 'servo_down_on':
-                    self.onoff_servo(-1)
-                elif command == 'servo_off':
-                    self.onoff_servo(0)
-                elif command == 'reset_encoder':
-                    self.fnreset_encoder(1)
                 elif command == 'wait':
                     #check_distance_wall = False
                     ms = float(tmp[1])
@@ -377,7 +365,6 @@ class AutoPaint():
                     if tmp[1] == 'slider':
                         if tmp[2] == 'move_to':
                             target = float(tmp[3])
-                            self.set_slider_move_distance(target)
                             try:
                                 ms = float(tmp[4])
                             except:
@@ -564,10 +551,10 @@ class AutoPaint():
                     angles.append(angle_deg)
                     distances.append(distance_cm)  # mm
                     
-                    print("angle" + str(angle_deg))
-                    print("distance" + str(distance_cm))
-                    print("y+" + str(start_point_y))
-                    print("y-" + str(end_point_y))
+                    #print("angle" + str(angle_deg))
+                    #print("distance" + str(distance_cm))
+                    #print("y+" + str(start_point_y))
+                    #print("y-" + str(end_point_y))
                     
                     
         distances = np.array(distances) * 10
@@ -589,21 +576,6 @@ class AutoPaint():
             self.slider.spray_action(device=SprayDevice.LOW, action=SprayAction.ON)
         elif onoff == 0:
             self.slider.spray_action(device=SprayDevice.LOW, action=SprayAction.OFF)
-
-    def onoff_mid_spray(self, onoff):
-        if onoff == 1:
-            self.slider.spray_action(device=SprayDevice.MID, action=SprayAction.ON)
-        elif onoff == 0:
-            self.slider.spray_action(device=SprayDevice.MID, action=SprayAction.OFF)
-
-    def onoff_servo(self, onoff):
-        if onoff == 1:
-            self.r.set("servo_1", 1)
-        elif onoff == -1:
-            self.r.set("servo_2", 1)
-        elif onoff == 0:
-            self.r.set("servo_1", 0)
-            self.r.set("servo_2", 0)
 
     def fnStop(self):
         self.fnGoStraight(0, 0, 0)
@@ -647,23 +619,9 @@ class AutoPaint():
         twist.angular.z = -angular_z
         self.pub_cmd_vel.publish(twist)
 
-    def fnreset_encoder(self, reset):
-        if reset:
-            self.r.set("encoder_reset", 1)
-            time.sleep(0.5)
-            self.r.set("encoder_reset", 0)
-
-    def set_slider_move_distance(self, target):
-        '''
-        slider_cur_pos = float(self.r.get("slider_main_laser_distance"))
-        slider_target_distance = float(target)
-        remain_distance = abs(int(target - slider_cur_pos))
-        self.r.hset("slider", "move_distance", remain_distance)
-        rospy.loginfo("slider distance remaining: " + str(remain_distance))
-        '''
-        self.r.hset("slider", "move_distance", int(target))
-
     def fnGoStraight(self, x=0, y=0, z=0, limit=0.3, fixed_speed=False):
+        global move_y_dir
+
         if not fixed_speed:
             Kp = 0.8
             x = Kp * x
@@ -678,7 +636,10 @@ class AutoPaint():
         twist.linear.z = z
         twist.angular.x = 0
         twist.angular.y = 0
-        twist.angular.z = 0
+        if move_y_dir:
+            twist.angular.z = float(self.r.hget("laser_parallel","angular_vel"))
+        else:
+            twist.angular.z = 0
         self.pub_cmd_vel.publish(twist)
 
     def fnShutDown(self):
