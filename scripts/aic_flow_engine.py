@@ -7,6 +7,7 @@ import numpy as np
 import redis
 from enum import Enum
 import time
+import sys
 
 move_x_dir = False
 move_y_dir = False
@@ -305,8 +306,14 @@ class AutoPaint():
         elif self.current_stage == 'bye':
             return True
         elif self.current_stage == 'read_flow':
-            file1 = open('aicode.txt', 'r')
-            #file1 = open('aicode_paint.txt', 'r')
+            try:
+                file_name = str(sys.argv[1])
+                file_path = "/home/aic/aic_ws/src/laser_line_extraction/scripts/" + file_name
+                file1 = open('file_path', 'r')
+            except:
+                file1 = open('aicode.txt', 'r')
+                pass
+
             ## file1 = open('aicode_rotate.txt', 'r')
             lines = file1.readlines()
             # todo validate lines
