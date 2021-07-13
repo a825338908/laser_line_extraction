@@ -309,7 +309,7 @@ class AutoPaint():
             try:
                 file_name = str(sys.argv[1])
                 file_path = "/home/aic/aic_ws/src/laser_line_extraction/scripts/" + file_name
-                file1 = open('file_path', 'r')
+                file1 = open(file_path, 'r')
             except:
                 file1 = open('aicode.txt', 'r')
                 pass
