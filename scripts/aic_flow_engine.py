@@ -640,6 +640,7 @@ class AutoPaint():
             twist.angular.z = float(self.r.hget("laser_parallel","angular_vel"))
         else:
             twist.angular.z = 0
+
         self.pub_cmd_vel.publish(twist)
 
     def fnShutDown(self):
