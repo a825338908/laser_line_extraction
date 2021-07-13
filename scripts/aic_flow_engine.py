@@ -307,7 +307,7 @@ class AutoPaint():
         elif self.current_stage == 'read_flow':
             file1 = open('aicode.txt', 'r')
             #file1 = open('aicode_paint.txt', 'r')
-            # file1 = open('aicode_rotate.txt', 'r')
+            ## file1 = open('aicode_rotate.txt', 'r')
             lines = file1.readlines()
             # todo validate lines
             self.register_steps(lines)
