@@ -182,7 +182,7 @@ class SliderPaint():
     def spray_action(self, device, action = SprayAction.OFF):
         if float(self.r.get("spray_main_switch")) < 0.5:
             action = SprayAction.OFF
-        self.r.hset("Joy", device.value, action.value)
+        self.r.hset("slider", device.value, action.value)
 
     def all_spray_off(self):
 
