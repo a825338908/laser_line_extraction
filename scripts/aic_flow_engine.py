@@ -29,28 +29,43 @@ class SliderDevice(Enum):
 
 
 class SprayDevice(Enum):
-    HIGH = 'spray_mid' #'spray_high'
-    MID = 'spray_high'#spray_mid'
-    LOW = 'spray_low'
+    LHIGH = 'left_spray_high' 
+    LMID = 'left_spray_mid'
+    LLOW = 'left_spray_low'
 
+    RHIGH = 'right_spray_high' 
+    RMID = 'right_spray_mid'
+    RLOW = 'right_spray_low'
 
 def spray_device_from_key(key):
-    if key == 'spray_high':
-        device = SprayDevice.HIGH
-    elif key == 'spray_mid':
-        device = SprayDevice.MID
-    elif key == 'spray_low':
-        device = SprayDevice.LOW
+    if key == 'left_spray_high':
+        device = SprayDevice.LHIGH
+    elif key == 'left_spray_mid':
+        device = SprayDevice.LMID
+    elif key == 'left_spray_low':
+        device = SprayDevice.LLOW
+    elif key == 'right_spray_high':
+        device = SprayDevice.RHIGH 
+    elif key == 'right_spray_mid':
+        device = SprayDevice.RMID  
+    elif key == 'right_spray_low':
+        device = SprayDevice.RLOW                    
     return device
 
 
 def spray_device_from_id(id):
     if id == 0:
-        device = SprayDevice.HIGH
+        device = SprayDevice.LHIGH
     elif id == 1:
-        device = SprayDevice.MID
+        device = SprayDevice.LMID
     elif id == 2:
-        device = SprayDevice.LOW
+        device = SprayDevice.LLOW
+    elif id == 3:
+        device = SprayDevice.RHIGH
+    elif id == 4:
+        device = SprayDevice.RMID
+    elif id == 5:
+        device = SprayDevice.RLOW                
     return device
 
 
@@ -202,7 +217,7 @@ class SliderPaint():
 
     def process_painting_state_matrix(self, slider_pos):
         # turn on or turn off device according to current slider position
-        devices_key = ['spray_high', 'spray_mid', 'spray_low']
+        devices_key = ['left_spray_high', 'left_spray_mid', 'left_spray_low', 'right_spray_high', 'right_spray_mid', 'right_spray_low']
         for key in devices_key:
             spray_min_pos, spray_max_pos= self.spray_devices_range[key]
             action = self.get_spray_action_state(slider_pos, spray_min_pos, spray_max_pos)
@@ -215,7 +230,7 @@ class SliderPaint():
 
     def register_spray_devices_range(self):
         # TODO later not to hard code the device names
-        devices_key = ['spray_high', 'spray_mid', 'spray_low']
+        devices_key = ['left_spray_high', 'left_spray_mid', 'left_spray_low', 'right_spray_high', 'right_spray_mid', 'right_spray_low']
         for key in devices_key:
             self.spray_devices_range[key] = (
             float(self.r.hget(key + "_range", 'min')), float(self.r.hget(key + "_range", 'max')))
