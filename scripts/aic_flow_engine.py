@@ -66,12 +66,12 @@ def init_redis(r=None, restore_default=False):
 
     if restore_default:
         r.set("spray_main_switch", 0.0)
-        r.hset("spray_high_range", "min", 1560)
-        r.hset("spray_high_range", "max", 2630)
-        r.hset("spray_mid_range", "min", 890)
-        r.hset("spray_mid_range", "max", 2630)
-        r.hset("spray_low_range", "min", 1020)
-        r.hset("spray_low_range", "max", 1910)
+        r.hset("spray_high_range", "min", 0)
+        r.hset("spray_high_range", "max", 2100)
+        r.hset("spray_mid_range", "min", 0)
+        r.hset("spray_mid_range", "max", 2100)
+        r.hset("spray_low_range", "min", 0)
+        r.hset("spray_low_range", "max", 2100)
 
         r.hset("slider_main_range", "min", 0)
         r.hset("slider_main_range", "max", 2100)
@@ -100,14 +100,17 @@ class SliderPaint():
         self.spray_devices_standing_by = dict()
         self.spray_devices_range = dict()
 
+
     def spray_enter_standby(self, device, enable = True):
         self.spray_devices_standing_by[device] = enable
+
 
     def get_spray_action_state(self, slider_pos, on_min, on_max):
         if on_min < slider_pos < on_max:
             return SprayAction.ON
         else:
             return SprayAction.OFF
+
 
     def slider_action(self, action = SliderAction.STOP):
         '''
