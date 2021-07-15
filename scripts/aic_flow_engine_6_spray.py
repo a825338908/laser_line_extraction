@@ -81,14 +81,21 @@ def init_redis(r=None, restore_default=False):
 
     if restore_default:
         r.set("spray_main_switch", 0.0)
-        r.hset("spray_high_range", "min", 0)
-        r.hset("spray_high_range", "max", 2100)
-        r.hset("spray_mid_range", "min", 0)
-        r.hset("spray_mid_range", "max", 2100)
-        r.hset("spray_low_range", "min", 0)
-        r.hset("spray_low_range", "max", 2100)
+        r.hset("left_spray_high_range", "min", 0)
+        r.hset("left_spray_high_range", "max", 2100)
+        r.hset("left_spray_mid_range", "min", 0)
+        r.hset("left_spray_mid_range", "max", 2100)
+        r.hset("left_spray_low_range", "min", 0)
+        r.hset("left_spray_low_range", "max", 2100)
 
-        r.hset("slider_main_range", "min", 0)
+        r.hset("right_spray_high_range", "min", 0)
+        r.hset("right_spray_high_range", "max", 2100)
+        r.hset("right_spray_mid_range", "min", 0)
+        r.hset("right_spray_mid_range", "max", 2100)
+        r.hset("right_spray_low_range", "min", 0)
+        r.hset("right_spray_low_range", "max", 2100)
+
+        r.hset("slider_main_range", "min", -10)
         r.hset("slider_main_range", "max", 2100)
 
     # high: 1560 < x < 2630
@@ -197,13 +204,20 @@ class SliderPaint():
     def spray_action(self, device, action = SprayAction.OFF):
         if float(self.r.get("spray_main_switch")) < 0.5:
             action = SprayAction.OFF
+        print("lololololol")
+        print(device.value)
+        print(action.value)
         self.r.hset("slider", device.value, action.value)
 
     def all_spray_off(self):
 
-        self.spray_action(device=SprayDevice.HIGH, action=SprayAction.OFF)
-        self.spray_action(device=SprayDevice.MID, action=SprayAction.OFF)
-        self.spray_action(device=SprayDevice.LOW, action=SprayAction.OFF)
+        self.spray_action(device=SprayDevice.LHIGH, action=SprayAction.OFF)
+        self.spray_action(device=SprayDevice.LMID, action=SprayAction.OFF)
+        self.spray_action(device=SprayDevice.LLOW, action=SprayAction.OFF)
+
+        self.spray_action(device=SprayDevice.RHIGH, action=SprayAction.OFF)
+        self.spray_action(device=SprayDevice.RMID, action=SprayAction.OFF)
+        self.spray_action(device=SprayDevice.RLOW, action=SprayAction.OFF)
 
     def all_off(self):
         self.all_spray_off()
@@ -721,4 +735,3 @@ if __name__ == '__main__':
     rospy.init_node('auto_paint_vision_face_wall_angle', anonymous=True)
     node = AutoPaint()
     node.main()
-
