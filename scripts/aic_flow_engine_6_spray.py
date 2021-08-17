@@ -80,7 +80,7 @@ def init_redis(r=None, restore_default=False):
     #r.hset("Joy", "updown_but", 0.0)  # -1.0 or 0.0 or 1.0
 
     if restore_default:
-        r.set("spray_main_switch", 0.0)
+        r.set("spray_main_switch", 1.0)
         r.hset("left_spray_high_range", "min", 0)
         r.hset("left_spray_high_range", "max", 2100)
         r.hset("left_spray_mid_range", "min", 0)
@@ -389,7 +389,10 @@ class AutoPaint():
                 elif command == 'spray_mid_off':
                     self.onoff_mid_spray(0)
                 elif command == 'spray_mid_on':
-                    self.onoff_mid_spray(1)                    
+                    self.onoff_mid_spray(1)
+                elif command == 'stick_wall':
+                    stick_onoff = float(tmp[1]) #0 off, >0 on
+                    self.fnstick_wall(stick_onoff)
                 elif command == 'wait':
                     ms = float(tmp[1])
                     if self.step_t0 is None:
@@ -447,7 +450,7 @@ class AutoPaint():
                             move_y_dir = False
                         elif int(tmp[3]) == 90 or int(tmp[3]) == -90: 
                             move_x_dir = False
-                            move_y_dir = True  
+                            move_y_dir = True
 
                         walls = self.get_walls(float(tmp[3]))
                         target_distance = float(tmp[4])
@@ -629,6 +632,8 @@ class AutoPaint():
         elif onoff == 0:
             self.slider.spray_action(device=SprayDevice.MID, action=SprayAction.OFF)
 
+    def fnstick_wall(self,stick_onoff):
+        self.hset("stick_wall", "onoff", onoff)
 
     def onoff_servo(self,onoff):
         if onoff == 1:

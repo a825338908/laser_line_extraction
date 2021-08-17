@@ -152,25 +152,21 @@ class SliderPaint():
         else:
             self.r.hset("slider", "stop", 0.0)
         '''
+        
         if slider_device == "left":
-            self.r.hset("slider", "left_slider_move", action.value)
+            self.r.hset("slider", "controller_id", "left")
+            self.r.hset("slider", "move", action.value)
             self.is_running = action != SliderAction.STOP
             if not self.is_running:
                 self.all_spray_off()
                 self.is_processing_command = False
         elif slider_device == "right":
-            self.r.hset("slider", "right_slider_move", action.value)
+            self.r.hset("slider", "controller_id", "right")
+            self.r.hset("slider", "move", action.value)
             self.is_running = action != SliderAction.STOP
             if not self.is_running:
                 self.all_spray_off()
-                self.is_processing_command = False
-        elif slider_device == "all":
-            self.r.hset("slider", "left_slider_move", action.value)
-            self.r.hset("slider", "right_slider_move", action.value)
-            self.is_running = action != SliderAction.STOP
-            if not self.is_running:
-                self.all_spray_off()
-                self.is_processing_command = False                                       
+                self.is_processing_command = False                                    
 
 
     def move_to(self, target,slider_device):
@@ -182,7 +178,7 @@ class SliderPaint():
                 self.slider_action(slider_device, SliderAction.STOP )
                 return False
             print('slider_' + slider_device + '_distance')
-            current_pos = float(self.r.get('slider_' + slider_device + '_distance'))
+            current_pos = float(self.r.hget('encoder', 'right_distance'))
 
             rospy.loginfo("current_pos: {}".format(current_pos))
             if self.min_pos < current_pos < self.max_pos:
@@ -233,7 +229,7 @@ class SliderPaint():
                 self.slider_action(SliderAction.STOP, slider_device)
                 return False
             print('slider_' + slider_device + '_distance')
-            current_pos = float(self.r.get('slider_' + slider_device + '_distance'))
+            current_pos = float(self.r.hget('encoder', 'left_distance'))
 
             rospy.loginfo("current_pos: {}".format(current_pos))
             if self.min_pos < current_pos < self.max_pos:
@@ -272,58 +268,6 @@ class SliderPaint():
                     self.processing_action = None
                 elif self.processing_action == SliderAction.UP and self.max_pos - self.tolerance_mm < current_pos < self.max_pos + self.tolerance_mm:
                     self.slider_action(slider_device,action=SliderAction.STOP)
-                    rospy.logwarn("reached max pos")
-                    self.is_processing_command = False
-                    self.processing_action = None
-
-        elif slider_device == "all":
-            if self.min_pos <= target <= self.max_pos:
-                pass 
-            else:
-                rospy.logerr("target pos out of range. Stopping")
-                self.slider_action(SliderAction.STOP, slider_device)
-                return False
-
-            left_current_pos = float(self.r.get('slider_' + 'left' + '_distance'))
-            right_current_pos = float(self.r.get('slider_' + 'right' + '_distance'))
-
-            rospy.loginfo("current_pos: {}".format(current_pos))
-            if self.min_pos < left_current_pos < self.max_pos and self.min_pos < left_current_pos < self.max_pos:
-                pass
-            else:
-                rospy.logerr("current pos out of range. Stopping")
-                return False
-            if not self.is_processing_command:  # first time; initiate action
-                # fetch spray range
-                self.register_spray_devices_range()
-                if current_pos > target:
-                    action = SliderAction.DOWN
-                else:
-                    action = SliderAction.UP
-                self.slider_action(slider_device,action=action)
-                self.is_processing_command = True
-                self.processing_action = action
-            else:
-                self.slider_action(SliderAction.NONE, slider_device)
-                rospy.loginfo("target: {}".format(target))
-                rospy.loginfo("direction: {}".format(self.processing_action))
-                # enable spray if needed
-                self.process_painting_state_matrix(left_current_pos) ###TODO indepent 
-
-                # check if arrived within tolerance
-                if target - self.tolerance_mm < left_current_pos < target + self.tolerance_mm and target - self.tolerance_mm < right_current_pos < target + self.tolerance_mm:
-                    self.slider_action(slider_device,action=SliderAction.STOP)
-                    rospy.loginfo("slider reached target")
-                    self.is_processing_command = False
-                    self.processing_action = None
-                    # done
-                elif self.processing_action == SliderAction.DOWN and self.min_pos - self.tolerance_mm < left_current_pos < self.min_pos + self.tolerance_mm and self.min_pos - self.tolerance_mm < right_current_pos < self.min_pos + self.tolerance_mm:
-                    self.slider_action(slider_device,action=SliderAction.STOP)
-                    rospy.logwarn("reached min pos")
-                    self.is_processing_command = False
-                    self.processing_action = None
-                elif self.processing_action == SliderAction.UP and self.max_pos - self.tolerance_mm < left_current_pos < self.max_pos + self.tolerance_mm and self.max_pos - self.tolerance_mm < right_current_pos < self.max_pos+ self.tolerance_mm:
-                    self.slider_action(slider_device,action=SliderAction.STOP, )
                     rospy.logwarn("reached max pos")
                     self.is_processing_command = False
                     self.processing_action = None
@@ -378,13 +322,13 @@ class SliderPaint():
 class AutoPaint():
     def __init__(self):
         self.min_spacing_mm = 450
-        self.tolerance_distance = 25  # mm
+        self.tolerance_distance = 10  # mm
         self.walls = None
         self.is_walls_available = False
         loop_rate = rospy.Rate(10)  # 1Hz in gazebo
         self.current_stage = 'read_flow'  # read_flow
         self.sub_lines = rospy.Subscriber('/line_segments', LineSegmentList, self.cbGetLines, queue_size=1)
-        self.pub_cmd_vel = rospy.Publisher('/yocs_cmd_vel_mux/cmd_vel', Twist, queue_size=1)
+        self.pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         self.step_t0 = None
         self.step_d0 = None
         self.step_num = None
@@ -398,15 +342,22 @@ class AutoPaint():
         print("Joy stick is disable now")
         self.r.set("Joy_able_slider", 0)
         while not rospy.is_shutdown():
-            if self.is_walls_available:
-                keep_working = self.process()
-                if keep_working and self.step_num < len(self.steps):
-                    pass
-                else:
-                    rospy.loginfo("Completed")
-                    rospy.signal_shutdown("Completed")
-                    break
-            loop_rate.sleep()
+            try:
+                if self.is_walls_available:
+                    keep_working = self.process()
+                    if keep_working and self.step_num < len(self.steps):
+                        pass
+                    else:
+                        rospy.loginfo("Completed")
+                        rospy.signal_shutdown("Completed")
+                        break
+                loop_rate.sleep()
+            except Exception as e:
+                print("error msg: " + str(e))
+                if e == "ROS shutdown request":
+                       self.all_spray_off()
+                       self.r.hset("slider", "stop",1)
+
         print("Joy stick is enable now")
         self.r.set("Joy_able_slider", 1)
         print('898')
@@ -504,6 +455,9 @@ class AutoPaint():
                     move_time = int(move_time)
                     print("move_time: " + str(move_time))
                     self.fnblind_move_y(move_time)
+                elif command == "stick" :
+                    press_distance = float(tmp[1])   
+                    self.stick_wall(press_distance) 
                 elif command == 'spray_high_on':
                     self.onoff_high_spray(1)
                 elif command == 'spray_high_off':
@@ -771,6 +725,7 @@ class AutoPaint():
         elif onoff == 0:
             self.slider.spray_action(device=SprayDevice.HIGH, action=SprayAction.OFF)
 
+
     def onoff_low_spray(self, onoff):
         if onoff == 1:
             self.slider.spray_action(device=SprayDevice.LOW, action=SprayAction.ON)
@@ -811,6 +766,21 @@ class AutoPaint():
         while((int(round(time.time()*1000)) - last_time_milliseconds) < move_time):
             self.pub_cmd_vel.publish(twist)
 
+    def stick_wall(self,press_distance):
+        tolerance = 5 # mm
+        twist = Twist()
+        twist.linear.x = 0
+        twist.linear.y = 0.05
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = 0
+        target = press_distance
+        current = float(self.r.hget("stick_wall", "press_distance"))
+        while abs(current - target) > tolerance :
+            current = float(self.r.hget("stick_wall", "press_distance"))
+            self.pub_cmd_vel.publish(twist)                 
+
     def fnblind_move_y(self,move_time):
         twist = Twist()
         twist.linear.x = 0
@@ -822,6 +792,7 @@ class AutoPaint():
         last_time_milliseconds = int(round(time.time()*1000))
         while((int(round(time.time()*1000)) - last_time_milliseconds) < move_time):
             self.pub_cmd_vel.publish(twist)
+
 
     def fnTurn(self, theta):
         Kp = 2.0
@@ -848,27 +819,17 @@ class AutoPaint():
 
     def set_slider_move_distance(self, target, slider_device):
         if slider_device == "left":
-            slider_cur_pos = float(self.r.get("slider_left_distance"))
+            slider_cur_pos = float(self.r.hget("encoder", "left_distance"))
             slider_target_distance = float(target)
             remain_distance = abs(int(target - slider_cur_pos))
-            self.r.hset("slider", "left_move_distance", remain_distance)
+            self.r.hset("slider", "move_distance", remain_distance)
             rospy.loginfo("Left slider distance remaining: " + str(remain_distance))
         elif slider_device == "right":
-            slider_cur_pos = float(self.r.get("slider_right_distance"))
+            slider_cur_pos = float(self.r.hget("encoder", "right_distance"))
             slider_target_distance = float(target)
             remain_distance = abs(int(target - slider_cur_pos))
-            self.r.hset("slider", "right_move_distance", remain_distance)
-            rospy.loginfo("Right slider distance remaining: " + str(remain_distance))
-        elif slider_device == "all": 
-            slider_left_cur_pos = float(self.r.get("slider_left_distance"))
-            slider_right_cur_pos = float(self.r.get("slider_right_distance"))
-            slider_target_distance = float(target)
-            left_remain_distance = abs(int(target - slider_left_cur_pos))
-            right_remain_distance = abs(int(target - slider_right_cur_pos))
-            self.r.hset("slider", "right_move_distance", right_remain_distance)
-            self.r.hset("slider", "left_move_distance", left_remain_distance)
-            rospy.loginfo("Left slider distance remaining: " + str(left_remain_distance))    
-            rospy.loginfo("Right slider distance remaining: " + str(right_remain_distance))                   
+            self.r.hset("slider", "move_distance", remain_distance)
+            rospy.loginfo("Right slider distance remaining: " + str(remain_distance))                 
 
 
     def fnGoStraight(self, x=0, y=0, z=0, limit=0.3, fixed_speed=False):
@@ -876,15 +837,15 @@ class AutoPaint():
 
         if not fixed_speed:
             Kp = 0.8
-            x = Kp * x
-            y = Kp * y
+            x = Kp * x * 0.5
+            y = Kp * y * 0.5
             z = Kp * z
             x = self.clamp(x, -limit, limit)
             y = self.clamp(y, -limit, limit)
             z = self.clamp(z, -limit, limit)
         twist = Twist()
-        twist.linear.x = x*1.5
-        twist.linear.y = y*1.5
+        twist.linear.x = x
+        twist.linear.y = y
         twist.linear.z = z
         twist.angular.x = 0
         twist.angular.y = 0
